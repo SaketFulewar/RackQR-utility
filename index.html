@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WareLabel Pro — Sticker Sheet Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#111318;--s1:#181c25;--s2:#1e2330;--s3:#252b3b;
+  --border:#2e3448;--border2:#3a4260;
+  --acc:#e8c547;--acc2:#4f8ef7;--acc3:#34d399;
+  --text:#dde1f0;--muted:#5a6480;--muted2:#8892b0;
+  --danger:#f87171;--r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:50}
+.logo{font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:1.1rem;letter-spacing:-0.3px}
+.logo em{color:var(--acc);font-style:normal}
+.logo sup{font-size:0.48rem;background:var(--acc);color:#000;padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:1px;vertical-align:super;margin-left:4px}
+.topbar-right{display:flex;gap:8px;align-items:center}
+
+/* LAYOUT */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:310px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ACCORDION */
+.acc-sec{border-bottom:1px solid var(--border)}
+.acc-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;user-select:none;font-size:0.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);transition:color 0.15s}
+.acc-head:hover{color:var(--text)}
+.acc-head.open{color:var(--acc)}
+.acc-head .arr{transition:transform 0.2s;font-size:0.55rem;color:var(--muted)}
+.acc-head.open .arr{transform:rotate(180deg);color:var(--acc)}
+.acc-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);margin-right:8px;flex-shrink:0;transition:background 0.15s}
+.acc-head.open .acc-dot{background:var(--acc)}
+.acc-body{display:none;padding:10px 14px 14px;gap:9px;flex-direction:column}
+.acc-body.open{display:flex}
+
+/* FIELD */
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:0.58rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.field input[type=number],.field input[type=text],.field select{
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:0.78rem;
+  padding:6px 8px;width:100%;transition:border-color 0.15s;-moz-appearance:textfield
+}
+.field input::-webkit-outer-spin-button,.field input::-webkit-inner-spin-button{-webkit-appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--acc)}
+.field select{cursor:pointer}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px}
+
+/* UNIT TABS */
+.utabs{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.utab{flex:1;padding:6px 2px;text-align:center;font-size:0.62rem;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'IBM Plex Mono',monospace;transition:all 0.15s}
+.utab.on{background:var(--acc);color:#000}
+
+/* SLIDER */
+.sl-row{display:flex;align-items:center;gap:8px}
+.sl-row input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer}
+.sl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--acc);cursor:pointer}
+.sl-val{min-width:34px;text-align:right;font-size:0.72rem;color:var(--acc);font-weight:600}
+
+/* COLOR */
+.cf{display:flex;align-items:center;gap:7px}
+.cs{width:28px;height:28px;border-radius:4px;border:1px solid var(--border2);overflow:hidden;flex-shrink:0;cursor:pointer;position:relative}
+.cs input[type=color]{position:absolute;inset:-4px;width:calc(100%+8px);height:calc(100%+8px);border:none;cursor:pointer;padding:0}
+.ch{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:5px 7px}
+.ch:focus{outline:none;border-color:var(--acc)}
+
+/* TOGGLE */
+.trow{display:flex;align-items:center;justify-content:space-between}
+.trow label.tlbl{font-size:0.68rem;color:var(--muted2)}
+.tog{position:relative;width:32px;height:17px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;border-radius:9px;background:var(--border2);cursor:pointer;transition:background 0.2s}
+.tslider::before{content:'';position:absolute;width:11px;height:11px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform 0.2s}
+.tog input:checked+.tslider{background:var(--acc)}
+.tog input:checked+.tslider::before{transform:translateX(15px)}
+
+/* ALIGN BTNS */
+.abp{display:flex;gap:3px}
+.abtn{flex:1;padding:5px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:0.65rem;cursor:pointer;font-family:'IBM Plex Mono',monospace;text-align:center;transition:all 0.15s}
+.abtn.on{background:var(--acc);color:#000;border-color:var(--acc)}
+
+/* DROP ZONE */
+.dz{border:2px dashed var(--border2);border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative}
+.dz:hover,.dz.drag{border-color:var(--acc);background:rgba(232,197,71,0.04)}
+.dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.dz-ico{font-size:1.6rem;margin-bottom:5px}
+.dz-txt{font-size:0.68rem;color:var(--muted);line-height:1.6}
+.dz-txt strong{color:var(--acc2)}
+.fpill{display:flex;align-items:center;gap:7px;padding:7px 9px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);border-radius:5px;font-size:0.68rem;color:var(--acc3)}
+.fpill-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fpill-x{cursor:pointer;opacity:0.6;flex-shrink:0;font-size:1rem;line-height:1}
+.fpill-x:hover{opacity:1;color:var(--danger)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 13px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:700;cursor:pointer;transition:all 0.15s;border:none;white-space:nowrap}
+.btn-acc{background:var(--acc);color:#000}.btn-acc:hover{background:#f5d060}.btn-acc:disabled{opacity:0.3;cursor:not-allowed}
+.btn-blue{background:transparent;color:var(--acc2);border:1px solid var(--acc2)}.btn-blue:hover{background:rgba(79,142,247,0.1)}
+.btn-ghost{background:transparent;color:var(--muted2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+.btn-sm{padding:6px 11px;font-size:0.65rem}
+.btn-xs{padding:4px 8px;font-size:0.6rem}
+
+/* MAIN */
+.main{flex:1;overflow:auto;display:flex;flex-direction:column;background:var(--bg)}
+.main::-webkit-scrollbar{width:6px;height:6px}
+.main::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:9px 20px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px;flex-wrap:wrap}
+.stats{display:flex;gap:18px}
+.stat{display:flex;flex-direction:column;gap:1px}
+.stat-lbl{font-size:0.52rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.stat-val{font-size:0.82rem;font-weight:700;color:var(--acc)}
+.tb-right{display:flex;gap:8px}
+
+/* CANVAS WRAP */
+.cw{flex:1;padding:28px;display:flex;flex-direction:column;align-items:center;gap:24px;min-height:0;overflow:auto}
+.cw::-webkit-scrollbar{width:6px;height:6px}
+.cw::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+
+/* SHEET */
+.sheet{background:#fff;box-shadow:0 4px 32px rgba(0,0,0,0.6);position:relative;flex-shrink:0}
+.sheet-grid{position:absolute;display:grid}
+
+/* STICKER */
+.stk{overflow:hidden;position:relative}
+.stk-inner{position:absolute;display:flex}
+.stk-text{display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.stk-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.stk-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.stk-qr{flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.stk-qr>div{overflow:hidden;line-height:0}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;flex:1;color:var(--muted);text-align:center;padding:40px;min-height:300px}
+.empty-ico{font-size:3rem;opacity:0.25}
+.empty-h{font-family:'IBM Plex Sans',sans-serif;font-size:0.95rem;font-weight:700;color:var(--muted2)}
+.empty-p{font-size:0.7rem;line-height:1.8;max-width:280px}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:9px 14px;font-size:0.7rem;display:flex;align-items:center;gap:8px;transform:translateY(60px);opacity:0;transition:all 0.25s;z-index:999}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(52,211,153,0.4);color:var(--acc3)}
+.toast.err{border-color:rgba(248,113,113,0.4);color:var(--danger)}
+
+.sep{height:1px;background:var(--border);margin:1px 0}
+.sec-lbl{font-size:0.58rem;color:var(--muted2);letter-spacing:1px;text-transform:uppercase;padding:4px 0 0}
+
+/* PRINT */
+@media print{
+  .topbar,.sidebar,.toolbar{display:none!important}
+  .layout{display:block}.main{overflow:visible}
+  .cw{padding:0;gap:0;overflow:visible}
+  .sheet{box-shadow:none;page-break-after:always}
+  body{background:#fff;overflow:visible}
+  html,body{height:auto;overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Ware<em>Label</em><sup>PRO</sup></div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost btn-sm" onclick="if(confirm('Reset all?'))location.reload()">↺ Reset</button>
+    <button class="btn btn-blue btn-sm" onclick="doPrint()">⎙ Print</button>
+    <button class="btn btn-acc btn-sm" onclick="downloadPDF()">↓ PDF</button>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+
+  <!-- PAGE SETUP -->
+  <div class="acc-sec">
+    <div class="acc-head open" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Page Setup</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body open">
+      <div class="field"><label>Unit</label>
+        <div class="utabs">
+          <button class="utab on" data-u="mm" onclick="setUnit('mm')">mm</button>
+          <button class="utab" data-u="cm" onclick="setUnit('cm')">cm</button>
+          <button class="utab" data-u="in" onclick="setUnit('in')">in</button>
+          <button class="utab" data-u="px" onclick="setUnit('px')">px</button>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="field"><label>Page Width</label><input type="number" id="pgW" value="210" step="0.5" oninput="go()"></div>
+        <div class="field"><label>Page Height</label><input type="number" id="pgH" value="297" step="0.5" oninput="go()"></div>
+      </div>
+      <div class="sec-lbl">Page Margins</div>
+      <div class="g4">
+        <div class="field"><label>Top</label><input type="number" id="mT" value="10" step="0.5" oninput="go()"></div>
+        <div class="field"><label>Bot</label><input type="number" id="mB" value="10" step="0.5" oninput="go()"></div>
+        <div class="field"><label>Left</label><input type="number" id="mL" value="10" step="0.5" oninput="go()"></div>
+        <div class="field"><label>Right</label><input type="number" id="mR" value="10" step="0.5" oninput="go()"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="acc-sec">
+    <div class="acc-head open" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Grid</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body open">
+      <div class="g2">
+        <div class="field"><label>Columns</label><input type="number" id="gCols" value="3" min="1" max="30" oninput="go()"></div>
+        <div class="field"><label>Rows</label><input type="number" id="gRows" value="8" min="1" max="50" oninput="go()"></div>
+      </div>
+      <div class="g2">
+        <div class="field"><label>Col Gap</label><input type="number" id="gapX" value="3" step="0.5" min="0" oninput="go()"></div>
+        <div class="field"><label>Row Gap</label><input type="number" id="gapY" value="3" step="0.5" min="0" oninput="go()"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STICKER PADDING & LAYOUT -->
+  <div class="acc-sec">
+    <div class="acc-head open" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Sticker Padding &amp; Layout</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body open">
+      <div class="sec-lbl">Inner Padding (per side)</div>
+      <div class="g4">
+        <div class="field"><label>Top</label><input type="number" id="pT" value="2" step="0.5" min="0" oninput="go()"></div>
+        <div class="field"><label>Bot</label><input type="number" id="pB" value="2" step="0.5" min="0" oninput="go()"></div>
+        <div class="field"><label>Left</label><input type="number" id="pL" value="3" step="0.5" min="0" oninput="go()"></div>
+        <div class="field"><label>Right</label><input type="number" id="pR" value="2" step="0.5" min="0" oninput="go()"></div>
+      </div>
+      <div class="sep"></div>
+      <div class="field"><label>QR Position</label>
+        <div class="abp">
+          <button class="abtn" data-qp="left" onclick="setQP('left')">◁ Left</button>
+          <button class="abtn on" data-qp="right" onclick="setQP('right')">Right ▷</button>
+        </div>
+      </div>
+      <div class="field"><label>Text — Vertical Align</label>
+        <div class="abp">
+          <button class="abtn on" data-va="center" onclick="setVA('center')">Middle</button>
+          <button class="abtn" data-va="flex-start" onclick="setVA('flex-start')">Top</button>
+          <button class="abtn" data-va="flex-end" onclick="setVA('flex-end')">Bottom</button>
+        </div>
+      </div>
+      <div class="field"><label>Text — Horizontal Align</label>
+        <div class="abp">
+          <button class="abtn on" data-ha="left" onclick="setHA('left')">Left</button>
+          <button class="abtn" data-ha="center" onclick="setHA('center')">Center</button>
+          <button class="abtn" data-ha="right" onclick="setHA('right')">Right</button>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div class="field"><label>Gap: Text ↔ QR</label>
+        <div class="sl-row">
+          <input type="range" id="tqG" min="0" max="20" value="3" step="0.5" oninput="sv('tqG','tqGV');go()">
+          <span class="sl-val" id="tqGV">3</span>
+        </div>
+      </div>
+      <div class="field"><label>QR Size (% of sticker height)</label>
+        <div class="sl-row">
+          <input type="range" id="qrPct" min="20" max="95" value="70" oninput="sv('qrPct','qrPctV','%');go()">
+          <span class="sl-val" id="qrPctV">70%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <div class="acc-sec">
+    <div class="acc-head" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Typography</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="g2">
+        <div class="field"><label>Name Size (pt)</label><input type="number" id="fsName" value="9" min="4" max="36" step="0.5" oninput="go()"></div>
+        <div class="field"><label>Sub Size (pt)</label><input type="number" id="fsSub" value="6.5" min="4" max="24" step="0.5" oninput="go()"></div>
+      </div>
+      <div class="g2">
+        <div class="field"><label>Name Weight</label>
+          <select id="fwName" onchange="go()">
+            <option value="400">Regular</option>
+            <option value="500">Medium</option>
+            <option value="600">SemiBold</option>
+            <option value="700" selected>Bold</option>
+            <option value="800">ExtraBold</option>
+            <option value="900">Black</option>
+          </select>
+        </div>
+        <div class="field"><label>Sub Weight</label>
+          <select id="fwSub" onchange="go()">
+            <option value="400" selected>Regular</option>
+            <option value="500">Medium</option>
+            <option value="600">SemiBold</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Font Family</label>
+        <select id="fontFam" onchange="go()">
+          <option value="'IBM Plex Mono',monospace" selected>IBM Plex Mono</option>
+          <option value="monospace">System Mono</option>
+          <option value="'Courier New',monospace">Courier New</option>
+          <option value="Arial,sans-serif">Arial</option>
+          <option value="sans-serif">System Sans</option>
+          <option value="'Times New Roman',serif">Times New Roman</option>
+        </select>
+      </div>
+      <div class="field"><label>Letter Spacing (px)</label>
+        <div class="sl-row">
+          <input type="range" id="lspc" min="-2" max="8" value="0" step="0.5" oninput="sv('lspc','lspcV');go()">
+          <span class="sl-val" id="lspcV">0</span>
+        </div>
+      </div>
+      <div class="field"><label>Line Height</label>
+        <div class="sl-row">
+          <input type="range" id="lh" min="0.8" max="2.5" value="1.2" step="0.05" oninput="sv('lh','lhV');go()">
+          <span class="sl-val" id="lhV">1.2</span>
+        </div>
+      </div>
+      <div class="field"><label>Name / Sub Spacing (px)</label>
+        <div class="sl-row">
+          <input type="range" id="nsGap" min="0" max="12" value="2" step="0.5" oninput="sv('nsGap','nsGapV');go()">
+          <span class="sl-val" id="nsGapV">2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLORS & BORDERS -->
+  <div class="acc-sec">
+    <div class="acc-head" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Colors &amp; Borders</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="field"><label>Text Color</label>
+        <div class="cf"><div class="cs"><input type="color" id="cText" value="#111111" oninput="syncHex('cText','hText');go()"></div>
+        <input type="text" class="ch" id="hText" value="#111111" oninput="syncCol('hText','cText');go()"></div>
+      </div>
+      <div class="field"><label>Sub Text Color</label>
+        <div class="cf"><div class="cs"><input type="color" id="cSub" value="#444444" oninput="syncHex('cSub','hSub');go()"></div>
+        <input type="text" class="ch" id="hSub" value="#444444" oninput="syncCol('hSub','cSub');go()"></div>
+      </div>
+      <div class="field"><label>Background</label>
+        <div class="cf"><div class="cs"><input type="color" id="cBg" value="#ffffff" oninput="syncHex('cBg','hBg');go()"></div>
+        <input type="text" class="ch" id="hBg" value="#ffffff" oninput="syncCol('hBg','cBg');go()"></div>
+      </div>
+      <div class="field"><label>Border Color</label>
+        <div class="cf"><div class="cs"><input type="color" id="cBorder" value="#cccccc" oninput="syncHex('cBorder','hBorder');go()"></div>
+        <input type="text" class="ch" id="hBorder" value="#cccccc" oninput="syncCol('hBorder','cBorder');go()"></div>
+      </div>
+      <div class="field"><label>QR Color</label>
+        <div class="cf"><div class="cs"><input type="color" id="cQR" value="#000000" oninput="syncHex('cQR','hQR');go()"></div>
+        <input type="text" class="ch" id="hQR" value="#000000" oninput="syncCol('hQR','cQR');go()"></div>
+      </div>
+      <div class="sep"></div>
+      <div class="field"><label>Border Width (px)</label>
+        <div class="sl-row">
+          <input type="range" id="bw" min="0" max="5" value="1" step="0.5" oninput="sv('bw','bwV');go()">
+          <span class="sl-val" id="bwV">1</span>
+        </div>
+      </div>
+      <div class="field"><label>Border Radius (px)</label>
+        <div class="sl-row">
+          <input type="range" id="br" min="0" max="24" value="2" oninput="sv('br','brV');go()">
+          <span class="sl-val" id="brV">2</span>
+        </div>
+      </div>
+      <div class="trow">
+        <label class="tlbl">Empty cell border</label>
+        <label class="tog"><input type="checkbox" id="emBorder" onchange="go()"><span class="tslider"></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA SOURCE -->
+  <div class="acc-sec">
+    <div class="acc-head open" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Data Source</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body open">
+      <div id="dzWrap" class="dz">
+        <input type="file" id="xlFile" accept=".xlsx,.xls,.csv" onchange="loadFile(event)">
+        <div class="dz-ico">📊</div>
+        <div class="dz-txt">Drop <strong>Excel / CSV</strong> here<br>or click to browse</div>
+      </div>
+      <div id="fpill" style="display:none"></div>
+      <div id="colMap" style="display:none;flex-direction:column;gap:8px">
+        <div class="field"><label>Rack Name Column</label><select id="colName" onchange="go()"></select></div>
+        <div class="field"><label>Sub-label Column (optional)</label><select id="colSub" onchange="go()"></select></div>
+        <div class="field"><label>QR Data Column</label><select id="colQR" onchange="go()"></select></div>
+        <div class="trow">
+          <label class="tlbl">Skip empty rows</label>
+          <label class="tog"><input type="checkbox" id="skipEm" checked onchange="go()"><span class="tslider"></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZOOM -->
+  <div class="acc-sec">
+    <div class="acc-head" onclick="accToggle(this)">
+      <span style="display:flex;align-items:center"><span class="acc-dot"></span>Preview Zoom</span>
+      <span class="arr">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="sl-row">
+        <input type="range" id="zoom" min="20" max="200" value="80" oninput="sv('zoom','zoomV','%');applyZoom()">
+        <span class="sl-val" id="zoomV">80%</span>
+      </div>
+      <div class="g4">
+        <button class="btn btn-ghost btn-xs" onclick="setZoom(40)">40%</button>
+        <button class="btn btn-ghost btn-xs" onclick="setZoom(70)">70%</button>
+        <button class="btn btn-ghost btn-xs" onclick="setZoom(100)">100%</button>
+        <button class="btn btn-ghost btn-xs" onclick="setZoom(150)">150%</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:12px 14px 20px">
+    <button class="btn btn-acc" style="width:100%;font-size:0.72rem" onclick="go()">↻ Re-render</button>
+  </div>
+
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+  <div class="toolbar">
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">Labels</div><div class="stat-val" id="sL">—</div></div>
+      <div class="stat"><div class="stat-lbl">Sheets</div><div class="stat-val" id="sS">—</div></div>
+      <div class="stat"><div class="stat-lbl">Per Sheet</div><div class="stat-val" id="sP">—</div></div>
+      <div class="stat"><div class="stat-lbl">Cell W×H</div><div class="stat-val" id="sC">—</div></div>
+    </div>
+    <div class="tb-right">
+      <button class="btn btn-ghost btn-sm" onclick="doPrint()">⎙ Print</button>
+      <button class="btn btn-acc btn-sm" onclick="downloadPDF()">↓ Download PDF</button>
+    </div>
+  </div>
+
+  <div class="cw" id="cw">
+    <div class="empty" id="emptyState">
+      <div class="empty-ico">🏷️</div>
+      <div class="empty-h">No Preview Yet</div>
+      <div class="empty-p">Upload your Excel / CSV with rack data, then configure page, grid, and sticker settings. The preview updates live.</div>
+    </div>
+    <div id="sheets" style="display:none;flex-direction:column;gap:28px;align-items:center"></div>
+  </div>
+</div>
+
+</div><!-- .layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const MM = 3.7795275591; // px per mm at 96dpi
+let unit = 'mm';
+let rows = [], headers = [];
+let qrPos = 'right', vAlign = 'center', hAlign = 'left';
+let zoom = 0.8;
+let renderTimer = null;
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const n = id => parseFloat($(id).value) || 0;
+
+function toMM(v) {
+  if (unit==='mm') return v;
+  if (unit==='cm') return v*10;
+  if (unit==='in') return v*25.4;
+  if (unit==='px') return v/MM;
+  return v;
+}
+function px(mm)  { return mm * MM * zoom; }     // zoomed px for screen
+function pxR(mm) { return mm * MM; }            // real px (1:1)
+
+function sv(sid, vid, sfx='') {
+  $(vid).textContent = $(sid).value + sfx;
+}
+function syncHex(cid, hid) { $(hid).value = $(cid).value; }
+function syncCol(hid, cid) {
+  const v = $(hid).value;
+  if (/^#[0-9a-f]{6}$/i.test(v)) $(cid).value = v;
+}
+
+// ═══════════════════════════════════════════════
+// ACCORDION
+// ═══════════════════════════════════════════════
+function accToggle(head) {
+  head.classList.toggle('open');
+  head.nextElementSibling.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════
+// UNIT
+// ═══════════════════════════════════════════════
+function setUnit(u) {
+  unit = u;
+  document.querySelectorAll('.utab').forEach(t => t.classList.toggle('on', t.dataset.u===u));
+}
+
+// ═══════════════════════════════════════════════
+// ALIGN CONTROLS
+// ═══════════════════════════════════════════════
+function setQP(p) {
+  qrPos = p;
+  document.querySelectorAll('[data-qp]').forEach(b => b.classList.toggle('on', b.dataset.qp===p));
+  go();
+}
+function setVA(v) {
+  vAlign = v;
+  document.querySelectorAll('[data-va]').forEach(b => b.classList.toggle('on', b.dataset.va===v));
+  go();
+}
+function setHA(h) {
+  hAlign = h;
+  document.querySelectorAll('[data-ha]').forEach(b => b.classList.toggle('on', b.dataset.ha===h));
+  go();
+}
+
+// ═══════════════════════════════════════════════
+// ZOOM
+// ═══════════════════════════════════════════════
+function setZoom(z) {
+  $('zoom').value = z;
+  $('zoomV').textContent = z + '%';
+  applyZoom();
+}
+function applyZoom() {
+  zoom = parseInt($('zoom').value) / 100;
+  go();
+}
+
+// ═══════════════════════════════════════════════
+// FILE
+// ═══════════════════════════════════════════════
+function loadFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, {header:1});
+      headers = (json[0]||[]).map(String);
+      rows = json.slice(1);
+      buildColMap();
+      showPill(file.name, rows.length);
+      toast(`✓ Loaded ${rows.length} rows`, 'ok');
+      go();
+    } catch(err) { toast('Read error: '+err.message,'err'); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+function buildColMap() {
+  ['colName','colSub','colQR'].forEach(id => {
+    const sel = $(id); sel.innerHTML='';
+    if (id==='colSub') sel.innerHTML='<option value="-1">— none —</option>';
+    headers.forEach((h,i) => {
+      const o = document.createElement('option');
+      o.value=i; o.textContent=`${i+1}. ${h}`; sel.appendChild(o);
+    });
+  });
+  if (headers.length>1) $('colQR').value=0;
+  $('colMap').style.display='flex';
+}
+
+function showPill(name, count) {
+  const fp=$('fpill'); fp.style.display='flex'; fp.className='fpill';
+  fp.innerHTML=`<span>✓</span><span class="fpill-name">${name} (${count} rows)</span><span class="fpill-x" onclick="clearFile()">×</span>`;
+  $('dzWrap').style.display='none';
+}
+
+function clearFile() {
+  rows=[]; headers=[];
+  $('fpill').style.display='none';
+  $('colMap').style.display='none';
+  $('dzWrap').style.display='block';
+  $('xlFile').value='';
+  renderEmpty();
+}
+
+// Drag & drop
+const dz=$('dzWrap');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f) loadFile({target:{files:[f]}});
+});
+
+// ═══════════════════════════════════════════════
+// RENDER SCHEDULER
+// ═══════════════════════════════════════════════
+function go() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 100);
+}
+
+function renderEmpty() {
+  $('emptyState').style.display='flex';
+  $('sheets').style.display='none';
+  $('sheets').innerHTML='';
+  updateStats(0,0,0,'—');
+}
+
+function updateStats(l,s,p,c) {
+  $('sL').textContent = l||'—';
+  $('sS').textContent = s||'—';
+  $('sP').textContent = p||'—';
+  $('sC').textContent = c||'—';
+}
+
+// ═══════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════
+async function render() {
+  if (!rows.length) { renderEmpty(); return; }
+
+  // Page
+  const pgW=toMM(n('pgW')), pgH=toMM(n('pgH'));
+  const mT=toMM(n('mT')), mB=toMM(n('mB')), mL=toMM(n('mL')), mR=toMM(n('mR'));
+
+  // Grid
+  const cols=Math.max(1,Math.round(n('gCols')));
+  const rowsN=Math.max(1,Math.round(n('gRows')));
+  const gapX=toMM(n('gapX')), gapY=toMM(n('gapY'));
+
+  // Sticker padding
+  const pT=toMM(n('pT')), pB=toMM(n('pB')), pL=toMM(n('pL')), pR=toMM(n('pR'));
+
+  // Layout
+  const tqGap = toMM(n('tqG'));
+  const qrPct  = n('qrPct')/100;
+
+  // Typography
+  const fsName=n('fsName'), fsSub=n('fsSub');
+  const fwName=$('fwName').value, fwSub=$('fwSub').value;
+  const fontFam=$('fontFam').value;
+  const lspc=n('lspc');
+  const lh=n('lh');
+  const nsGap=n('nsGap');
+
+  // Colors
+  const cText=$('cText').value, cSub=$('cSub').value;
+  const cBg=$('cBg').value, cBorder=$('cBorder').value, cQR=$('cQR').value;
+  const bw=n('bw'), brPx=n('br');
+  const showEmBorder=$('emBorder').checked;
+
+  // Cell size (mm)
+  const availW=pgW-mL-mR, availH=pgH-mT-mB;
+  const cellW=(availW-gapX*(cols-1))/cols;
+  const cellH=(availH-gapY*(rowsN-1))/rowsN;
+
+  // Inner area (mm) — after padding
+  const innerW = cellW - pL - pR;
+  const innerH = cellH - pT - pB;
+
+  // Data
+  const iName=parseInt($('colName').value);
+  const iSub=parseInt($('colSub').value);
+  const iQR=parseInt($('colQR').value);
+  const skipEm=$('skipEm').checked;
+
+  let data = skipEm ? rows.filter(r=>r[iName]!==undefined&&r[iName]!=='') : rows;
+
+  const perSheet = cols*rowsN;
+  const total    = data.length;
+  const numSheets= Math.ceil(total/perSheet);
+
+  updateStats(total, numSheets, perSheet,
+    `${cellW.toFixed(1)}×${cellH.toFixed(1)}mm`);
+
+  // QR size in zoomed px
+  const qrSzPx = Math.max(10, Math.floor(px(innerH)*qrPct));
+
+  const container = $('sheets');
+  container.innerHTML='';
+  container.style.display='flex';
+  $('emptyState').style.display='none';
+
+  let li=0;
+
+  for (let s=0; s<numSheets; s++) {
+    const sheet = document.createElement('div');
+    sheet.className='sheet';
+    sheet.style.cssText=`width:${px(pgW)}px;height:${px(pgH)}px;`;
+
+    const grid = document.createElement('div');
+    grid.className='sheet-grid';
+    grid.style.cssText=`
+      top:${px(mT)}px;left:${px(mL)}px;
+      grid-template-columns:repeat(${cols},${px(cellW)}px);
+      grid-template-rows:repeat(${rowsN},${px(cellH)}px);
+      column-gap:${px(gapX)}px;row-gap:${px(gapY)}px;
+    `;
+
+    const onSheet = Math.min(perSheet, total-s*perSheet);
+
+    for (let i=0; i<perSheet; i++) {
+      const cell = document.createElement('div');
+      cell.className='stk';
+      const has = i<onSheet && li<total;
+
+      // Cell outer box
+      cell.style.cssText=`
+        width:${px(cellW)}px;height:${px(cellH)}px;
+        background:${has?cBg:'transparent'};
+        border:${(has||showEmBorder)?bw*zoom:0}px solid ${has?cBorder:'#e0e0e0'};
+        border-style:${has?'solid':'dashed'};
+        border-radius:${brPx*zoom}px;
+      `;
+
+      if (has) {
+        const row=data[li++];
+        const name=String(row[iName]??'');
+        const sub=iSub>=0?String(row[iSub]??''):'';
+        const qrVal=String(row[iQR]??name);
+
+        // INNER — positioned exactly by padding
+        const inner=document.createElement('div');
+        inner.className='stk-inner';
+        inner.style.cssText=`
+          top:${px(pT)}px;
+          left:${px(pL)}px;
+          width:${px(innerW)}px;
+          height:${px(innerH)}px;
+          flex-direction:${qrPos==='left'?'row-reverse':'row'};
+          align-items:stretch;
+          gap:${px(tqGap)}px;
+        `;
+
+        // TEXT BLOCK
+        const tb=document.createElement('div');
+        tb.className='stk-text';
+        tb.style.cssText=`
+          flex:1;min-width:0;
+          justify-content:${vAlign};
+          align-items:${hAlign==='center'?'center':hAlign==='right'?'flex-end':'flex-start'};
+          display:flex;flex-direction:column;
+        `;
+
+        const nameEl=document.createElement('div');
+        nameEl.className='stk-name';
+        nameEl.textContent=name;
+        nameEl.style.cssText=`
+          font-size:${fsName*zoom}pt;
+          font-weight:${fwName};
+          font-family:${fontFam};
+          color:${cText};
+          letter-spacing:${lspc*zoom}px;
+          line-height:${lh};
+          text-align:${hAlign};
+          max-width:100%;
+        `;
+        tb.appendChild(nameEl);
+
+        if (sub && sub!=='undefined' && sub!=='') {
+          const subEl=document.createElement('div');
+          subEl.className='stk-sub';
+          subEl.textContent=sub;
+          subEl.style.cssText=`
+            font-size:${fsSub*zoom}pt;
+            font-weight:${fwSub};
+            font-family:${fontFam};
+            color:${cSub};
+            letter-spacing:${lspc*zoom}px;
+            line-height:${lh};
+            text-align:${hAlign};
+            max-width:100%;
+            margin-top:${nsGap*zoom}px;
+          `;
+          tb.appendChild(subEl);
+        }
+
+        // QR BLOCK
+        const qrWrap=document.createElement('div');
+        qrWrap.className='stk-qr';
+        qrWrap.style.cssText=`
+          width:${qrSzPx}px;
+          align-self:center;
+          flex-shrink:0;
+        `;
+
+        const qrBox=document.createElement('div');
+        qrBox.style.cssText=`width:${qrSzPx}px;height:${qrSzPx}px;overflow:hidden;`;
+        try {
+          new QRCode(qrBox,{
+            text:qrVal||' ',
+            width:qrSzPx,height:qrSzPx,
+            colorDark:cQR,colorLight:cBg,
+            correctLevel:QRCode.CorrectLevel.M
+          });
+        } catch(e){}
+
+        qrWrap.appendChild(qrBox);
+
+        if (qrPos==='left') { inner.appendChild(qrWrap); inner.appendChild(tb); }
+        else                { inner.appendChild(tb);     inner.appendChild(qrWrap); }
+
+        cell.appendChild(inner);
+      }
+
+      grid.appendChild(cell);
+    }
+
+    sheet.appendChild(grid);
+    container.appendChild(sheet);
+    await new Promise(r=>requestAnimationFrame(r));
+  }
+
+  toast(`${total} labels · ${numSheets} sheet${numSheets>1?'s':''}`, 'ok');
+}
+
+// ═══════════════════════════════════════════════
+// PRINT
+// ═══════════════════════════════════════════════
+function doPrint() {
+  if (!rows.length) { toast('No data loaded','err'); return; }
+  window.print();
+}
+
+// ═══════════════════════════════════════════════
+// PDF (canvas-based)
+// ═══════════════════════════════════════════════
+async function downloadPDF() {
+  const cont=$('sheets');
+  if (!cont.children.length) { toast('No labels to export','err'); return; }
+  toast('Preparing PDF…','ok');
+
+  const pgW=toMM(n('pgW')), pgH=toMM(n('pgH'));
+
+  // Re-render at 100% zoom for best quality
+  const prevZoom=zoom; zoom=1;
+  await render();
+  await new Promise(r=>setTimeout(r,500));
+
+  try {
+    if (!window.jspdf) {
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload=res; s.onerror=rej;
+        document.head.appendChild(s);
+      });
+    }
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({
+      orientation:pgW>pgH?'l':'p',
+      unit:'mm',format:[pgW,pgH]
+    });
+
+    const sheets=Array.from($('sheets').children);
+    for (let i=0;i<sheets.length;i++) {
+      const c=buildCanvas(sheets[i],pgW,pgH);
+      const img=c.toDataURL('image/png',1.0);
+      if (i>0) pdf.addPage([pgW,pgH],pgW>pgH?'l':'p');
+      pdf.addImage(img,'PNG',0,0,pgW,pgH);
+    }
+    pdf.save('warehouse-labels.pdf');
+    toast('✓ PDF downloaded!','ok');
+  } catch(e) {
+    toast('PDF error — use Print → Save as PDF','err');
+    console.error(e);
+  }
+  zoom=prevZoom; go();
+}
+
+function buildCanvas(sheetEl, pgWmm, pgHmm) {
+  const W=Math.round(pgWmm*MM), H=Math.round(pgHmm*MM);
+  const scale=2;
+  const c=document.createElement('canvas');
+  c.width=W*scale; c.height=H*scale;
+  const ctx=c.getContext('2d');
+  ctx.scale(scale,scale);
+
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,W,H);
+
+  const pr=sheetEl.getBoundingClientRect();
+
+  sheetEl.querySelectorAll('.stk').forEach(stk=>{
+    const sr=stk.getBoundingClientRect();
+    const x=sr.left-pr.left, y=sr.top-pr.top;
+    const w=sr.width, h=sr.height;
+
+    if (stk.querySelector('.stk-inner')) {
+      // BG
+      ctx.fillStyle=stk.style.background||'#fff';
+      const r=parseFloat(stk.style.borderRadius)||0;
+      rrect(ctx,x,y,w,h,r); ctx.fill();
+
+      // Border
+      const bwPx=parseFloat(stk.style.borderWidth)||0;
+      if (bwPx>0) {
+        ctx.strokeStyle=stk.style.borderColor||'#ccc';
+        ctx.lineWidth=bwPx;
+        rrect(ctx,x,y,w,h,r); ctx.stroke();
+      }
+
+      // Text elements
+      stk.querySelectorAll('.stk-name,.stk-sub').forEach(el=>{
+        const er=el.getBoundingClientRect();
+        const ex=er.left-pr.left, ey=er.top-pr.top;
+        ctx.fillStyle=el.style.color||'#111';
+        const fs=parseFloat(el.style.fontSize)||9;
+        const fw=el.style.fontWeight||'400';
+        const ff=el.style.fontFamily||'sans-serif';
+        const ls=parseFloat(el.style.letterSpacing)||0;
+        ctx.font=`${fw} ${fs*1.333}px ${ff}`;
+        ctx.letterSpacing=ls+'px';
+        ctx.textBaseline='top';
+        const alpha=el.classList.contains('stk-sub')?1:1;
+        ctx.globalAlpha=alpha;
+        ctx.fillText(el.textContent,ex,ey,er.width);
+        ctx.globalAlpha=1;
+      });
+
+      // QR
+      const qrImg=stk.querySelector('.stk-qr canvas,.stk-qr img');
+      if (qrImg) {
+        const qbox=stk.querySelector('.stk-qr>div');
+        if (qbox) {
+          const qr=qbox.getBoundingClientRect();
+          try { ctx.drawImage(qrImg,qr.left-pr.left,qr.top-pr.top,qr.width,qr.height); }
+          catch(e){}
+        }
+      }
+    } else {
+      // Empty dashed
+      ctx.setLineDash([2,2]);
+      ctx.strokeStyle='#ddd'; ctx.lineWidth=0.5;
+      ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+      ctx.setLineDash([]);
+    }
+  });
+  return c;
+}
+
+function rrect(ctx,x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+let toastT;
+function toast(msg,type='ok') {
+  const el=$('toast');
+  el.textContent=msg; el.className=`toast ${type} show`;
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+// Init slider display values
+[['tqG','tqGV'],['qrPct','qrPctV','%'],['lspc','lspcV'],['lh','lhV'],
+ ['nsGap','nsGapV'],['bw','bwV'],['br','brV'],['zoom','zoomV','%']
+].forEach(([sid,vid,sfx=''])=>{
+  const el=$(sid); if(el&&$(vid)) $(vid).textContent=el.value+sfx;
+});
+</script>
+</body>
+</html>
